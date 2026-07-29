@@ -1,4 +1,5 @@
 import { prisma } from './db';
+import { ensureSeeded } from './seed';
 import type {
   GlobalConfig,
   PricingPackage,
@@ -13,6 +14,7 @@ import type {
  */
 
 export async function getSpecialties(): Promise<Specialty[]> {
+  await ensureSeeded(prisma);
   const rows = await prisma.specialty.findMany({ orderBy: { createdAt: 'asc' } });
   return rows.map((r) => ({
     id: r.id,
@@ -26,6 +28,7 @@ export async function getSpecialties(): Promise<Specialty[]> {
 }
 
 export async function getPackages(): Promise<PricingPackage[]> {
+  await ensureSeeded(prisma);
   const rows = await prisma.package.findMany({
     orderBy: { createdAt: 'asc' },
     include: { specialties: true },
@@ -50,6 +53,7 @@ const DEFAULT_VOLUME_BANDS: VolumeBand[] = [
 ];
 
 export async function getConfig(): Promise<GlobalConfig> {
+  await ensureSeeded(prisma);
   let row = await prisma.globalConfig.findUnique({ where: { id: 'global' } });
   if (!row) {
     row = await prisma.globalConfig.create({ data: { id: 'global' } });

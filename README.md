@@ -4,14 +4,23 @@ Ferramenta web interna para calcular o **preço por vida elegível** de cada
 proposta comercial B2B, validando a **margem real** por trás do preço cobrado.
 Substitui o cálculo manual em planilhas por uma lógica auditável e testada.
 
-## Como rodar
+## Como rodar (local)
+
+Precisa de uma connection string PostgreSQL em `DATABASE_URL` (crie um `.env` a
+partir do `.env.example`). Para desenvolvimento local você pode subir um Postgres
+descartável com `npx prisma dev` e usar a URL que ele imprime.
 
 ```bash
 npm install
-npm run db:push      # cria o SQLite (dev.db) a partir do schema Prisma
+export DATABASE_URL="postgres://..."   # ou coloque no .env
+npm run db:push      # cria as tabelas a partir do schema Prisma
 npm run db:seed      # popula o cenário de referência (Starbem)
 npm run dev          # http://localhost:3000
 ```
+
+O app também se **auto-inicializa**: no primeiro acesso com o banco vazio, ele
+cria o cenário de referência sozinho — então após `db:push` (ou `migrate deploy`)
+não é obrigatório rodar o seed manualmente.
 
 Testes da camada de cálculo (o coração da ferramenta):
 
@@ -19,10 +28,23 @@ Testes da camada de cálculo (o coração da ferramenta):
 npm test
 ```
 
+## Deploy na Vercel
+
+1. **Importe o repositório** na Vercel (New Project → importe este repo/branch).
+2. **Adicione um Postgres** — no projeto Vercel, aba *Storage* → *Create Database*
+   → Postgres (ou conecte Neon/Supabase). Isso define `DATABASE_URL`
+   automaticamente. Se definir manualmente, use a URL **direta (non-pooling)**,
+   pois as migrações rodam no build.
+3. **Deploy.** O build já roda `prisma migrate deploy` (cria as tabelas) via
+   `vercel.json`, e o app popula o cenário de referência no primeiro acesso.
+
+Nenhum passo manual de banco é necessário — ao abrir o link, o Dashboard já
+mostra os pacotes e preços de referência.
+
 ## Stack
 
 - **Next.js 16** (App Router) + **TypeScript** + **Tailwind CSS v4**
-- **Prisma 7 + SQLite** (driver adapter `better-sqlite3`) para persistência
+- **Prisma 7 + PostgreSQL** (driver adapter `pg`) para persistência
 - **ExcelJS** para exportação da matriz
 - **Vitest** para os testes unitários da precificação
 
