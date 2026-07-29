@@ -1,0 +1,86 @@
+// Starbem pricing platform — persistence schema (SQLite via Prisma 7).
+// The pricing math lives in src/lib/pricing; this only stores inputs and
+// saved proposals.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Specialty {
+  id                String   @id @default(cuid())
+  name              String
+  costPerCredit     Float
+  creditDurationMin Int
+  allowsDouble      Boolean  @default(false)
+  realShortShare    Float    @default(1)
+  realLongShare     Float    @default(0)
+  createdAt         DateTime @default(now())
+
+  packageLinks PackageSpecialty[]
+}
+
+model Package {
+  id         String   @id @default(cuid())
+  name       String
+  recurrence Float // consultations per user per month
+  createdAt  DateTime @default(now())
+
+  specialties PackageSpecialty[]
+}
+
+model PackageSpecialty {
+  id                String @id @default(cuid())
+  packageId         String
+  specialtyId       String
+  mixShare          Float // 0..1, share of the package's consultations
+  contractedCredits Float  @default(0)
+
+  package   Package   @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  specialty Specialty @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, specialtyId])
+}
+
+// Singleton row (id = "global") holding all global parameters.
+model GlobalConfig {
+  id               String   @id @default("global")
+  targetMargin     Float    @default(0.4)
+  taxRate          Float    @default(0.1125)
+  noShowRate       Float    @default(0.105)
+  noShowRepassePct Float    @default(0.3)
+  // JSON-encoded because SQLite has no scalar-list / native JSON.
+  utilizationBands String   @default("[0.01,0.015,0.02,0.03,0.04,0.05,0.06,0.08,0.1]")
+  volumeBands      String   @default("[]")
+  updatedAt        DateTime @updatedAt
+}
+
+// A saved proposal/client with a full snapshot of the inputs, so historical
+// versions stay reproducible even as the global config evolves (Phase 2 #10).
+model Proposal {
+  id         String   @id @default(cuid())
+  clientName String
+  notes      String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  versions ProposalVersion[]
+}
+
+model ProposalVersion {
+  id         String   @id @default(cuid())
+  proposalId String
+  version    Int
+  label      String   @default("")
+  // Full JSON snapshot: { specialties, packages, config, selection }.
+  snapshot   String
+  createdAt  DateTime @default(now())
+
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, version])
+}
