@@ -9,11 +9,12 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    // Tolerate the different env var names providers use (Vercel/Neon/Supabase).
+    // Migrations need a DIRECT (non-pooled) connection, so prefer the unpooled
+    // URLs first. Tolerate the different names providers use (Neon/Vercel/etc).
     url:
-      process.env["DATABASE_URL"] ||
       process.env["DATABASE_URL_UNPOOLED"] ||
       process.env["POSTGRES_URL_NON_POOLING"] ||
+      process.env["DATABASE_URL"] ||
       process.env["POSTGRES_PRISMA_URL"] ||
       process.env["POSTGRES_URL"],
   },
