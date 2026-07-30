@@ -3,19 +3,32 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+/**
+ * Resolve the Postgres URL, tolerating any variable name/prefix a provider
+ * (Neon/Vercel/Supabase) chooses. Prefers a direct (unpooled) connection,
+ * which migrations require.
+ */
+function resolveDatabaseUrl(): string | undefined {
+  const known =
+    process.env["DATABASE_URL_UNPOOLED"] ||
+    process.env["POSTGRES_URL_NON_POOLING"] ||
+    process.env["DATABASE_URL"] ||
+    process.env["POSTGRES_PRISMA_URL"] ||
+    process.env["POSTGRES_URL"];
+  if (known) return known;
+  const candidates = Object.entries(process.env).filter(
+    ([, v]) => typeof v === "string" && /^postgres(ql)?:\/\//.test(v),
+  ) as [string, string][];
+  const direct = candidates.find(([k]) => /UNPOOL|NON_POOL|DIRECT/i.test(k));
+  return (direct ?? candidates[0])?.[1];
+}
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    // Migrations need a DIRECT (non-pooled) connection, so prefer the unpooled
-    // URLs first. Tolerate the different names providers use (Neon/Vercel/etc).
-    url:
-      process.env["DATABASE_URL_UNPOOLED"] ||
-      process.env["POSTGRES_URL_NON_POOLING"] ||
-      process.env["DATABASE_URL"] ||
-      process.env["POSTGRES_PRISMA_URL"] ||
-      process.env["POSTGRES_URL"],
+    url: resolveDatabaseUrl(),
   },
 });

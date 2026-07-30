@@ -12,13 +12,21 @@ import { PrismaClient } from '@/generated/prisma/client';
  * by common providers (Vercel Postgres, Neon integration, Supabase, ...).
  */
 export function resolveDatabaseUrl(): string | undefined {
-  return (
+  const known =
     process.env.DATABASE_URL_UNPOOLED ||
     process.env.POSTGRES_URL_NON_POOLING ||
     process.env.DATABASE_URL ||
     process.env.POSTGRES_PRISMA_URL ||
-    process.env.POSTGRES_URL
-  );
+    process.env.POSTGRES_URL;
+  if (known) return known;
+  // Last resort: discover ANY Postgres connection string in the environment,
+  // regardless of the variable name/prefix a provider chose. Prefer a direct
+  // (unpooled) connection since migrations need one.
+  const candidates = Object.entries(process.env).filter(
+    ([, v]) => typeof v === 'string' && /^postgres(ql)?:\/\//.test(v),
+  ) as [string, string][];
+  const direct = candidates.find(([k]) => /UNPOOL|NON_POOL|DIRECT/i.test(k));
+  return (direct ?? candidates[0])?.[1];
 }
 
 function createClient(): PrismaClient {
