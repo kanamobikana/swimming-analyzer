@@ -7,8 +7,22 @@ import { PrismaClient } from '@/generated/prisma/client';
  * Uses PostgreSQL via the pg driver so it runs on serverless hosts (Vercel).
  * The connection string comes from DATABASE_URL.
  */
+/**
+ * Resolve the Postgres connection string, tolerating the different names used
+ * by common providers (Vercel Postgres, Neon integration, Supabase, ...).
+ */
+export function resolveDatabaseUrl(): string | undefined {
+  return (
+    process.env.DATABASE_URL ||
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL
+  );
+}
+
 function createClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = resolveDatabaseUrl();
   if (!connectionString) {
     throw new Error(
       'DATABASE_URL não configurada. Defina a connection string do Postgres.',

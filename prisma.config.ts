@@ -9,7 +9,12 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    // Default to a local SQLite file so a fresh clone works without a .env.
-    url: process.env["DATABASE_URL"] ?? "file:./dev.db",
+    // Tolerate the different env var names providers use (Vercel/Neon/Supabase).
+    url:
+      process.env["DATABASE_URL"] ||
+      process.env["DATABASE_URL_UNPOOLED"] ||
+      process.env["POSTGRES_URL_NON_POOLING"] ||
+      process.env["POSTGRES_PRISMA_URL"] ||
+      process.env["POSTGRES_URL"],
   },
 });
