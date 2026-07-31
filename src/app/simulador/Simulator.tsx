@@ -77,11 +77,42 @@ export function Simulator({
     }
   }, [packages, pkg, primaryShare, scenarioUtil, specMap, config, maxBandCap]);
 
-  if (!pkg || !matrix) {
+  if (!pkg) {
     return (
       <Card>
         <div className="p-6 text-sm text-muted">
-          Cadastre especialidades, pacotes e parâmetros para simular preços.
+          Cadastre especialidades e pelo menos um pacote para simular preços.
+        </div>
+      </Card>
+    );
+  }
+
+  const configInvalid = 1 - config.targetMargin - config.taxRate <= 0;
+  if (!matrix) {
+    return (
+      <Card>
+        <div className="space-y-2 p-6 text-sm">
+          {configInvalid ? (
+            <>
+              <p className="font-medium text-warning">
+                Parâmetros inválidos: margem-alvo ({formatPct(config.targetMargin)})
+                + imposto ({formatPct(config.taxRate)}) somam 100% ou mais, então
+                não é possível precificar.
+              </p>
+              <p className="text-muted">
+                Ajuste os valores em{' '}
+                <Link href="/configuracoes/parametros" className="text-brand underline">
+                  Parâmetros
+                </Link>
+                . Dica: digite os percentuais com vírgula (ex.: 11,25).
+              </p>
+            </>
+          ) : (
+            <p className="text-muted">
+              Não foi possível calcular a matriz com a configuração atual. Revise
+              os pacotes e parâmetros.
+            </p>
+          )}
         </div>
       </Card>
     );

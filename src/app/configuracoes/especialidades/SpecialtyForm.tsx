@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button, Input, Label } from '@/components/ui';
+import { formatDecimal } from '@/lib/format';
 import type { Specialty } from '@/lib/pricing/types';
 import { saveSpecialty } from '../actions';
 
@@ -40,11 +41,11 @@ export function SpecialtyForm({
         <Input
           id="costPerCredit"
           name="costPerCredit"
-          type="number"
-          step="0.01"
-          min="0"
+          type="text"
+          inputMode="decimal"
           required
-          defaultValue={specialty?.costPerCredit}
+          defaultValue={specialty ? formatDecimal(specialty.costPerCredit) : ''}
+          placeholder="ex: 25,00"
         />
       </div>
       <div>
@@ -54,11 +55,11 @@ export function SpecialtyForm({
         <Input
           id="creditDurationMin"
           name="creditDurationMin"
-          type="number"
-          step="1"
-          min="1"
+          type="text"
+          inputMode="numeric"
           required
           defaultValue={specialty?.creditDurationMin ?? 30}
+          placeholder="ex: 30"
         />
       </div>
       <div className="sm:col-span-2">
@@ -81,13 +82,12 @@ export function SpecialtyForm({
           <Input
             id="realLongShare"
             name="realLongShare"
-            type="number"
-            step="0.1"
-            min="0"
-            max="100"
+            type="text"
+            inputMode="decimal"
             defaultValue={
-              specialty ? Math.round(specialty.realLongShare * 1000) / 10 : 24
+              specialty ? formatDecimal(Math.round(specialty.realLongShare * 1000) / 10) : '24'
             }
+            placeholder="ex: 24"
           />
           <p className="mt-1 text-xs text-muted">
             O restante é considerado sessão curta (1 crédito). Usado no custo

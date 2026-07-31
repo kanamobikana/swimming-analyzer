@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { Button, Input, Label, Select } from '@/components/ui';
+import { formatDecimal, parseNumber } from '@/lib/format';
 import type { PricingPackage, Specialty } from '@/lib/pricing/types';
 import { savePackage } from '../actions';
 
-type Line = { specialtyId: string; mixPercent: number; contractedCredits: number };
+type Line = { specialtyId: string; mix: string; credits: string };
 
 export function PackageForm({
   specialties,
@@ -16,17 +17,21 @@ export function PackageForm({
   pkg?: PricingPackage;
   onDone?: () => void;
 }) {
+  const [recurrence, setRecurrence] = useState(
+    pkg ? formatDecimal(pkg.recurrence) : '2',
+  );
   const [lines, setLines] = useState<Line[]>(
     pkg
       ? pkg.specialties.map((ps) => ({
           specialtyId: ps.specialtyId,
-          mixPercent: Math.round(ps.mixShare * 1000) / 10,
-          contractedCredits: ps.contractedCredits,
+          mix: formatDecimal(Math.round(ps.mixShare * 1000) / 10),
+          credits: String(ps.contractedCredits ?? ''),
         }))
-      : [{ specialtyId: specialties[0]?.id ?? '', mixPercent: 100, contractedCredits: 0 }],
+      : [{ specialtyId: specialties[0]?.id ?? '', mix: '100', credits: '' }],
   );
 
-  const mixTotal = lines.reduce((a, l) => a + (l.mixPercent || 0), 0);
+  const mixTotal = lines.reduce((a, l) => a + parseNumber(l.mix), 0);
+  const mixOk = Math.abs(mixTotal - 100) < 0.05;
 
   const update = (i: number, patch: Partial<Line>) =>
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -46,35 +51,49 @@ export function PackageForm({
           <Input id="name" name="name" required defaultValue={pkg?.name} placeholder="Ex: TP2/TP3" />
         </div>
         <div>
-          <Label htmlFor="recurrence" hint="(consultas/mês por usuário)">
-            Recorrência real esperada
-          </Label>
+          <Label htmlFor="recurrence">Recorrência real esperada</Label>
           <Input
             id="recurrence"
             name="recurrence"
-            type="number"
-            step="0.1"
-            min="0"
+            type="text"
+            inputMode="decimal"
             required
-            defaultValue={pkg?.recurrence ?? 2}
+            value={recurrence}
+            onChange={(e) => setRecurrence(e.target.value)}
+            placeholder="ex: 2"
           />
+          <p className="mt-1 text-xs text-muted">
+            Média de <strong>consultas/mês por usuário</strong> que realmente
+            acontece — vem do histórico da plataforma, não do teto do plano.
+            Ex.: mesmo ofertando 4 consultas, a recorrência real costuma ser ~2.
+          </p>
         </div>
       </div>
 
       <div>
-        <div className="mb-2 flex items-center justify-between">
-          <Label>Especialidades incluídas (mix de uso)</Label>
-          <span
-            className={`text-xs font-medium ${
-              Math.abs(mixTotal - 100) < 0.05 ? 'text-positive' : 'text-warning'
-            }`}
-          >
-            Soma do mix: {mixTotal.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%
+        <div className="mb-1 flex items-center justify-between">
+          <Label>Especialidades incluídas</Label>
+          <span className={`text-xs font-medium ${mixOk ? 'text-positive' : 'text-warning'}`}>
+            Soma do mix: {formatDecimal(mixTotal)}%{mixOk ? '' : ' (deve somar 100%)'}
           </span>
         </div>
-        <div className="space-y-2">
+        <p className="mb-2 text-xs text-muted">
+          O <strong>mix de uso</strong> é a fatia das consultas do pacote que vai
+          para cada especialidade (deve somar 100%). <strong>Créditos
+          contratados</strong> é o teto do plano por mês para aquela
+          especialidade (usado como referência).
+        </p>
+
+        <div className="grid grid-cols-12 gap-2 px-1 text-xs font-medium uppercase tracking-wide text-muted">
+          <div className="col-span-5">Especialidade</div>
+          <div className="col-span-3">Mix de uso (%)</div>
+          <div className="col-span-3">Créditos contratados/mês</div>
+          <div className="col-span-1" />
+        </div>
+
+        <div className="mt-1 space-y-2">
           {lines.map((line, i) => (
-            <div key={i} className="grid grid-cols-12 items-end gap-2">
+            <div key={i} className="grid grid-cols-12 items-center gap-2">
               <div className="col-span-5">
                 <Select
                   name="specialtyId"
@@ -91,28 +110,23 @@ export function PackageForm({
               <div className="col-span-3">
                 <Input
                   name="mixShare"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  aria-label="Mix %"
-                  value={line.mixPercent}
-                  onChange={(e) => update(i, { mixPercent: Number(e.target.value) })}
-                  placeholder="Mix %"
+                  type="text"
+                  inputMode="decimal"
+                  aria-label="Mix de uso (%)"
+                  value={line.mix}
+                  onChange={(e) => update(i, { mix: e.target.value })}
+                  placeholder="ex: 90"
                 />
               </div>
               <div className="col-span-3">
                 <Input
                   name="contractedCredits"
-                  type="number"
-                  step="1"
-                  min="0"
-                  aria-label="Créditos contratados"
-                  value={line.contractedCredits}
-                  onChange={(e) =>
-                    update(i, { contractedCredits: Number(e.target.value) })
-                  }
-                  placeholder="Créditos/mês"
+                  type="text"
+                  inputMode="numeric"
+                  aria-label="Créditos contratados/mês"
+                  value={line.credits}
+                  onChange={(e) => update(i, { credits: e.target.value })}
+                  placeholder="ex: 4"
                 />
               </div>
               <div className="col-span-1">
@@ -128,9 +142,7 @@ export function PackageForm({
             </div>
           ))}
         </div>
-        <div className="mt-2 flex gap-3 text-xs text-muted">
-          <span>Coluna 1: especialidade · Coluna 2: % do mix · Coluna 3: créditos contratados (teto)</span>
-        </div>
+
         <Button
           type="button"
           variant="secondary"
@@ -138,7 +150,7 @@ export function PackageForm({
           onClick={() =>
             setLines((prev) => [
               ...prev,
-              { specialtyId: specialties[0]?.id ?? '', mixPercent: 0, contractedCredits: 0 },
+              { specialtyId: specialties[0]?.id ?? '', mix: '', credits: '' },
             ])
           }
         >

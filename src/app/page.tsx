@@ -21,9 +21,21 @@ export default async function Dashboard() {
   const topBand = config.utilizationBands.length
     ? Math.max(...config.utilizationBands)
     : 0.1;
+  const configInvalid = 1 - config.targetMargin - config.taxRate <= 0;
 
   return (
     <div className="space-y-8">
+      {configInvalid ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-warning">
+          <strong>Parâmetros inválidos:</strong> margem-alvo (
+          {formatPct(config.targetMargin)}) + imposto ({formatPct(config.taxRate)})
+          somam 100% ou mais. Ajuste em{' '}
+          <Link href="/configuracoes/parametros" className="underline">
+            Parâmetros
+          </Link>{' '}
+          (digite os percentuais com vírgula, ex.: 11,25).
+        </div>
+      ) : null}
       <section className="rounded-2xl border border-border bg-gradient-to-br from-indigo-50 to-white p-8">
         <Badge tone="brand">Plataforma interna</Badge>
         <h1 className="mt-3 text-3xl font-semibold">

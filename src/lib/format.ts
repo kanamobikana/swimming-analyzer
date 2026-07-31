@@ -31,11 +31,54 @@ export function formatLives(lives: number | null): string {
   return lives.toLocaleString('pt-BR');
 }
 
-/** Parse a pt-BR or plain numeric string into a number (accepts "," decimals). */
+/**
+ * Parse a numeric string robustly, accepting both Brazilian ("1.234,56",
+ * "11,25", "10,5") and plain/US ("1234.56", "10.5") formats. Never throws and
+ * returns 0 for empty/invalid input.
+ *
+ * Rules:
+ * - both "." and "," present → the rightmost one is the decimal separator
+ * - only "," → single comma is decimal ("11,25"); many commas are thousands
+ * - only "." → single dot is decimal ("10.5"); many dots are thousands
+ */
 export function parseNumber(input: string | number | null | undefined): number {
-  if (typeof input === 'number') return input;
-  if (!input) return 0;
-  const normalized = String(input).trim().replace(/\./g, '').replace(',', '.');
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : Number(input) || 0;
+  if (typeof input === 'number') return Number.isFinite(input) ? input : 0;
+  if (input == null) return 0;
+  let s = String(input).trim().replace(/\s/g, '').replace(/[^\d.,-]/g, '');
+  if (!s) return 0;
+
+  const hasDot = s.includes('.');
+  const hasComma = s.includes(',');
+
+  if (hasDot && hasComma) {
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      s = s.replace(/\./g, '').replace(',', '.'); // BR: comma is decimal
+    } else {
+      s = s.replace(/,/g, ''); // US: dot is decimal
+    }
+  } else if (hasComma) {
+    s = s.split(',').length > 2 ? s.replace(/,/g, '') : s.replace(',', '.');
+  } else if (hasDot) {
+    if (s.split('.').length > 2) s = s.replace(/\./g, ''); // many dots → thousands
+  }
+
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Format a number with a pt-BR decimal comma, trimming trailing zeros. */
+export function formatDecimal(value: number, maxDigits = 4): string {
+  if (!Number.isFinite(value)) return '';
+  return new Intl.NumberFormat('pt-BR', {
+    useGrouping: false,
+    maximumFractionDigits: maxDigits,
+  }).format(value);
+}
+
+/** Parse a plain integer count (lives), ignoring any thousands separators. */
+export function parseInteger(input: string | number | null | undefined): number {
+  if (typeof input === 'number') return Number.isFinite(input) ? Math.round(input) : 0;
+  if (input == null) return 0;
+  const digits = String(input).replace(/[^\d]/g, '');
+  return digits ? parseInt(digits, 10) : 0;
 }

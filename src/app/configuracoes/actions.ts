@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
-import { parseNumber } from '@/lib/format';
+import { parseInteger, parseNumber } from '@/lib/format';
 import type { VolumeBand } from '@/lib/pricing/types';
 
 function num(form: FormData, key: string): number {
@@ -95,8 +95,9 @@ export async function deletePackage(form: FormData) {
 // --------------------------- Global config ---------------------------
 
 export async function saveConfig(form: FormData) {
-  const utilizationBands = ((form.get('utilizationBands') as string) || '')
-    .split(',')
+  // Each utilization band is its own field (avoids the comma-as-separator vs
+  // comma-as-decimal conflict). Values are entered as percentages.
+  const utilizationBands = (form.getAll('utilBand') as string[])
     .map((s) => parseNumber(s) / 100)
     .filter((n) => n > 0)
     .sort((a, b) => a - b);
@@ -107,7 +108,7 @@ export async function saveConfig(form: FormData) {
   const volumeBands: VolumeBand[] = volMax
     .map((maxRaw, i) => {
       const trimmed = (maxRaw ?? '').trim();
-      const maxLives = trimmed === '' ? null : parseNumber(trimmed);
+      const maxLives = trimmed === '' ? null : parseInteger(trimmed);
       return {
         maxLives,
         discountPct: parseNumber(volDisc[i]) / 100,
