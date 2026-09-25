@@ -53,6 +53,8 @@ export interface Athlete {
   goals: Goal[];
   /** Histórico de valores fisiológicos (para KPI atual × anterior). */
   history: PhysioSnapshot[];
+  /** Campos estimados (não medidos) — exibidos no perfil para revisão. */
+  estimates?: string[];
 }
 
 export interface PhysioSnapshot {

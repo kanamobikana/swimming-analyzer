@@ -8,7 +8,7 @@ import { MOCK_ATHLETE } from './mock/athlete';
 import { buildMockRaces, type MockRaceData } from './mock/races';
 import { buildMockActivities } from './mock/activities';
 import { connection } from 'next/server';
-import { readStore, type StoreState } from './store';
+import { layer, readSeed, readStore, type StoreState } from './store';
 
 export interface Dataset {
   today: string;
@@ -26,6 +26,8 @@ export interface Dataset {
     stravaAthleteName?: string;
     lastSyncAt?: string;
     profileIsSample: boolean;
+    /** Snapshot real versionado (ex.: exportação do Strava via conector do Claude). */
+    seedSource?: string;
   };
 }
 
@@ -44,13 +46,15 @@ export function todayIso(): string {
 
 export async function getDataset(): Promise<Dataset> {
   await connection(); // sempre por requisição: dados mudam com Strava/importações
-  const store = await readStore();
-  return mergeDataset(store, todayIso());
+  const [store, seed] = await Promise.all([readStore(), readSeed()]);
+  return mergeDataset(layer(seed, store), todayIso());
 }
 
-export function mergeDataset(store: StoreState, today: string): Dataset {
+export function mergeDataset(store: StoreState & { hasSeed?: boolean; seedSource?: string }, today: string): Dataset {
   const athlete = store.athlete ?? MOCK_ATHLETE;
-  const showSample = store.settings.showSampleData;
+  // Automático: exemplos só aparecem enquanto não há dados reais.
+  const hasReal = !!store.hasSeed || store.activities.length > 0 || store.races.length > 0;
+  const showSample = store.settings.showSampleData ?? !hasReal;
   const mock = getMockRaces();
 
   const races = [...store.races, ...(showSample ? mock.races : [])].sort((a, b) => a.date.localeCompare(b.date));
@@ -98,6 +102,7 @@ export function mergeDataset(store: StoreState, today: string): Dataset {
       stravaAthleteName: store.strava?.athleteName,
       lastSyncAt: store.strava?.lastSyncAt,
       profileIsSample: !store.athlete,
+      seedSource: store.seedSource,
     },
   };
 }

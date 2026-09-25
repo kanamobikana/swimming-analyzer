@@ -11,6 +11,7 @@ export function IntegrationsPanel(props: {
   auth: boolean;
   showSample: boolean;
   realActivities: number;
+  seedSource?: string;
 }) {
   const [pending, start] = useTransition();
   const [syncMsg, setSyncMsg] = useState<string>();
@@ -19,6 +20,11 @@ export function IntegrationsPanel(props: {
   return (
     <Card eyebrow="Integrações e dados" title="Fontes de dados">
       {props.message && <div className="mb-4 rounded-xl bg-surface-2 px-3 py-2 text-sm">{props.message}</div>}
+      {props.seedSource && (
+        <div className="mb-4 rounded-xl border border-line px-3 py-2.5 text-xs text-ink-2">
+          <span className="font-semibold text-ink">Snapshot real carregado:</span> {props.seedSource}. Para manter atualizado sem depender do Claude, conecte o app ao Strava abaixo.
+        </div>
+      )}
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-xl border border-line p-4">
           <div className="flex items-center justify-between">

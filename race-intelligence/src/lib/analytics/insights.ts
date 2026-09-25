@@ -269,12 +269,12 @@ export function kpis(ds: Dataset): Kpi[] {
   const out: Kpi[] = [
     { key: 'ftp', label: 'FTP', value: athlete.ftpW, previous: prevFtp, format: 'watts' },
     { key: 'wkg', label: 'W/kg', value: wkg, previous: prevFtp && prevW ? prevFtp / prevW : undefined, format: 'wkg' },
-    { key: 'vo2', label: 'VO₂ Max', value: athlete.vo2max, previous: prevSnapshot(ds, 'vo2max'), format: 'number' },
     { key: 'thr', label: 'Limiar corrida', value: athlete.thresholdPaceSecPerKm, previous: prevSnapshot(ds, 'thresholdPaceSecPerKm'), format: 'pace_km', lowerIsBetter: true },
     { key: 'css', label: 'CSS', value: athlete.cssSecPer100m, previous: prevSnapshot(ds, 'cssSecPer100m'), format: 'pace_100', lowerIsBetter: true },
     { key: 'hours', label: 'Horas/semana', value: last28 * 3600, previous: prev28 * 3600, format: 'hours', note: 'média últimas 4 semanas' },
     { key: 'consistency', label: 'Consistência', value: cons, previous: consPrev, format: 'score', note: 'últimos 30 dias' },
   ];
+  if (athlete.vo2max > 0) out.splice(2, 0, { key: 'vo2', label: 'VO₂ Max', value: athlete.vo2max, previous: prevSnapshot(ds, 'vo2max'), format: 'number' });
   if (last) out.push({ key: 'pct', label: 'Percentil (última prova)', value: last.a.percentile!, previous: prev?.a.percentile, format: 'percent', lowerIsBetter: true, note: last.race.name });
   if (best703) out.push({ key: 'best703', label: 'Melhor 70.3', value: best703.a.me!.totalS, previous: secondBest703?.a.me!.totalS, format: 'duration', lowerIsBetter: true, note: best703.race.name });
   const bs = bestSplit('swim');

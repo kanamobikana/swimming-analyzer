@@ -5,7 +5,7 @@ import { createRace, previewResults, type PreviewState } from '@/app/actions';
 import { Button, Card, Field, inputCls } from '@/components/ui';
 import { formatDuration } from '@/lib/domain/time';
 
-export function RaceForm({ athleteName }: { athleteName: string }) {
+export function RaceForm({ athleteName, defaults = {} }: { athleteName: string; defaults?: { name?: string; date?: string; swim?: string; bike?: string; run?: string } }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [createState, create, creating] = useActionState(createRace, {});
   const [preview, runPreview, previewing] = useActionState(previewResults, {} as PreviewState);
@@ -14,8 +14,8 @@ export function RaceForm({ athleteName }: { athleteName: string }) {
     <form ref={formRef} action={create} className="space-y-4">
       <Card eyebrow="1 · Prova">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="sm:col-span-2"><Field label="Nome *"><input name="name" required placeholder="IRONMAN 70.3 Florianópolis" className={inputCls} /></Field></div>
-          <Field label="Data *"><input name="date" type="date" required className={inputCls} /></Field>
+          <div className="sm:col-span-2"><Field label="Nome *"><input name="name" required defaultValue={defaults.name} placeholder="IRONMAN 70.3 Florianópolis" className={inputCls} /></Field></div>
+          <Field label="Data *"><input name="date" type="date" required defaultValue={defaults.date} className={inputCls} /></Field>
           <Field label="Local"><input name="location" placeholder="Florianópolis, SC" className={inputCls} /></Field>
           <Field label="Distância">
             <select name="distance" defaultValue="70.3" className={inputCls}>
@@ -89,11 +89,11 @@ export function RaceForm({ athleteName }: { athleteName: string }) {
       <Card eyebrow="3 · Resultado manual (opcional)">
         <p className="mb-3 text-xs text-muted">Use se não houver tabela oficial ou se você não for encontrado nela. Sem o field, não há análise de categoria.</p>
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-7">
-          <Field label="Swim"><input name="manualSwim" placeholder="36:50" className={inputCls} /></Field>
+          <Field label="Swim"><input name="manualSwim" defaultValue={defaults.swim} placeholder="36:50" className={inputCls} /></Field>
           <Field label="T1"><input name="manualT1" placeholder="3:20" className={inputCls} /></Field>
-          <Field label="Bike"><input name="manualBike" placeholder="2:28:30" className={inputCls} /></Field>
+          <Field label="Bike"><input name="manualBike" defaultValue={defaults.bike} placeholder="2:28:30" className={inputCls} /></Field>
           <Field label="T2"><input name="manualT2" placeholder="2:05" className={inputCls} /></Field>
-          <Field label="Run"><input name="manualRun" placeholder="1:37:20" className={inputCls} /></Field>
+          <Field label="Run"><input name="manualRun" defaultValue={defaults.run} placeholder="1:37:20" className={inputCls} /></Field>
           <Field label="Total"><input name="manualTotal" placeholder="4:48:05" className={inputCls} /></Field>
           <Field label="Pos. cat."><input name="manualCategoryRank" inputMode="numeric" className={inputCls} /></Field>
         </div>

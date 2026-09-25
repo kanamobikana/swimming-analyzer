@@ -28,11 +28,50 @@ export default async function RacesPage({ searchParams }: { searchParams: Promis
     .sort((x, y) => y.race.date.localeCompare(x.race.date));
   const done = rows.filter((r) => r.a.me).reverse();
 
+  // Provas detectadas no Strava ainda não cadastradas (agrupadas por dia).
+  const raceDates = new Set(ds.races.map((r) => r.date));
+  const detected = new Map<string, typeof ds.activities>();
+  for (const a of ds.activities) {
+    if (a.keySession !== 'race' || a.source === 'mock') continue;
+    const d = a.date.slice(0, 10);
+    if (raceDates.has(d)) continue;
+    detected.set(d, [...(detected.get(d) ?? []), a]);
+  }
+  const suggestions = [...detected.entries()].sort((x, y) => y[0].localeCompare(x[0])).map(([date, acts]) => {
+    const pick = (t: string[]) => acts.find((a) => t.includes(a.type));
+    const swim = pick(['swim', 'open_water_swim']);
+    const bike = pick(['ride', 'virtual_ride']);
+    const run = pick(['run']);
+    const q = new URLSearchParams({ date, name: (run ?? bike ?? swim ?? acts[0]).name.split('\n')[0].slice(0, 80) });
+    if (swim) q.set('swim', formatDuration(swim.movingTimeS));
+    if (bike) q.set('bike', formatDuration(bike.movingTimeS));
+    if (run) q.set('run', formatDuration(run.movingTimeS));
+    return { date, acts, href: `/provas/nova?${q}` };
+  });
+
   return (
     <div>
       <DataBanner ds={ds} />
       <PageHeader eyebrow="Race history" title="Provas" subtitle="Todas as provas, com posição e percentil relativos ao field de cada edição."
         action={<Link href="/provas/nova" className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-white">+ Cadastrar prova</Link>} />
+
+      {suggestions.length > 0 && (
+        <Card className="mb-4" eyebrow="Detectadas no Strava" title="Provas para cadastrar com o resultado oficial">
+          <ul className="divide-y divide-line">
+            {suggestions.map((s) => (
+              <li key={s.date} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+                <div className="min-w-0">
+                  <div className="text-xs text-muted">{formatDate(s.date)}</div>
+                  <div className="truncate font-medium">{s.acts.map((a) => a.name.split('\n')[0]).join(' · ')}</div>
+                  <div className="num text-xs text-ink-2">{s.acts.map((a) => `${a.type === 'run' ? 'Run' : a.type.includes('swim') ? 'Swim' : 'Bike'} ${formatDuration(a.movingTimeS)}`).join(' · ')}</div>
+                </div>
+                <Link href={s.href} className="rounded-xl border border-line px-3 py-1.5 text-xs font-medium hover:border-ink">Cadastrar →</Link>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-muted">Sem o field da categoria não há posição, percentil nem gap — cole a tabela oficial ao cadastrar.</p>
+        </Card>
+      )}
 
       <div className="mb-4 flex flex-wrap gap-2">
         {FILTERS.map((x) => <Chip key={x.key} href={`/provas?f=${x.key}`} active={x.key === filter.key}>{x.label}</Chip>)}

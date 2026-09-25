@@ -3,14 +3,15 @@ import { getDataset } from '@/lib/data/repository';
 import { PageHeader } from '@/components/ui';
 import { RaceForm } from './race-form';
 
-export default async function NewRacePage() {
+export default async function NewRacePage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const sp = await searchParams;
   const ds = await getDataset();
   return (
     <div>
       <div className="mb-2 text-xs text-muted"><Link href="/provas" className="hover:text-ink">← Provas</Link></div>
       <PageHeader eyebrow="Cadastro de prova" title="Nova prova"
         subtitle="Informe a URL oficial de resultados (ou cole a tabela copiada do site). O app extrai o field inteiro, encontra você pelo nome ou nº de peito e monta a análise da categoria." />
-      <RaceForm athleteName={ds.athlete.name} />
+      <RaceForm athleteName={ds.athlete.name} defaults={{ name: sp.name, date: sp.date, swim: sp.swim, bike: sp.bike, run: sp.run }} />
     </div>
   );
 }

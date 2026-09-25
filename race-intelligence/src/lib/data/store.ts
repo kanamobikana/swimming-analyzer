@@ -30,8 +30,8 @@ export interface StoreState {
   trackedCompetitorIds?: string[];
   strava?: StravaTokens & { lastSyncAt?: string; lastSyncCount?: number };
   settings: {
-    /** Mostrar provas/treinos de exemplo enquanto não há dados reais. */
-    showSampleData: boolean;
+    /** Mostrar provas/treinos de exemplo. undefined = automático (só sem dados reais). */
+    showSampleData?: boolean;
   };
 }
 
@@ -41,7 +41,7 @@ const EMPTY: StoreState = {
   results: [],
   competitors: [],
   activities: [],
-  settings: { showSampleData: true },
+  settings: {},
 };
 
 function storePath() {
@@ -75,4 +75,44 @@ export function updateStore(mutate: (s: StoreState) => void | Promise<void>): Pr
   });
   queue = run.catch(() => undefined);
   return run;
+}
+
+/**
+ * Seed versionado com dados reais do atleta (`data/seed.json`), gerado por
+ * `scripts/build-seed.ts` a partir do Strava. Serve de base; o store por cima.
+ */
+export type SeedState = Omit<StoreState, 'strava' | 'settings' | 'version'> & { generatedAt?: string; source?: string };
+
+let seedCache: SeedState | null | undefined;
+export async function readSeed(): Promise<SeedState | null> {
+  if (seedCache !== undefined) return seedCache;
+  try {
+    const raw = await fs.readFile(path.join(process.cwd(), 'data', 'seed.json'), 'utf8');
+    seedCache = JSON.parse(raw) as SeedState;
+  } catch {
+    seedCache = null;
+  }
+  return seedCache;
+}
+
+/** Store por cima do seed: o que o usuário editou/importou vence. */
+export function layer(seed: SeedState | null, store: StoreState): StoreState & { hasSeed: boolean; seedSource?: string } {
+  if (!seed) return { ...store, hasSeed: false };
+  const byId = <T extends { id: string }>(base: T[], over: T[]) => {
+    const m = new Map(base.map((x) => [x.id, x]));
+    for (const x of over) m.set(x.id, x);
+    return [...m.values()];
+  };
+  const storeRaceIds = new Set(store.races.map((r) => r.id));
+  return {
+    ...store,
+    athlete: store.athlete ?? seed.athlete,
+    races: byId(seed.races, store.races),
+    results: [...seed.results.filter((r) => !storeRaceIds.has(r.raceId)), ...store.results],
+    competitors: byId(seed.competitors, store.competitors),
+    activities: byId(seed.activities, store.activities).sort((a, b) => a.date.localeCompare(b.date)),
+    trackedCompetitorIds: store.trackedCompetitorIds ?? seed.trackedCompetitorIds,
+    hasSeed: true,
+    seedSource: seed.source,
+  };
 }

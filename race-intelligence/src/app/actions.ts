@@ -52,6 +52,8 @@ export async function saveProfile(_: unknown, fd: FormData): Promise<{ ok?: bool
   };
   const next: Athlete = {
     ...base,
+    // Depois de revisado pelo atleta, o perfil deixa de ser "estimado".
+    estimates: undefined,
     name: str(fd, 'name') || base.name,
     nickname: str(fd, 'nickname') || undefined,
     birthDate: str(fd, 'birthDate') || base.birthDate,

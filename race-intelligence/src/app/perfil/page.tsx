@@ -42,6 +42,12 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         </div>
       </Card>
 
+      {a.estimates?.length ? (
+        <Card eyebrow="Revisar" title="Valores estimados — confirme ou corrija abaixo" action={<Badge kind="estimate" />}>
+          <ul className="list-disc space-y-1 pl-4 text-sm text-ink-2">{a.estimates.map((e) => <li key={e}>{e}</li>)}</ul>
+        </Card>
+      ) : null}
+
       <ProfileForm athlete={a} />
 
       {a.history.length > 0 && (
@@ -74,6 +80,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           auth={authEnabled()}
           showSample={ds.meta.sampleRaces > 0 || ds.meta.activitiesSource === 'mock'}
           realActivities={ds.meta.activitiesSource !== 'mock' ? ds.activities.length : 0}
+          seedSource={ds.meta.seedSource}
         />
       </div>
     </div>
