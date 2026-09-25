@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f8f9fa;
+  --ink: #0b0d12;
+  --ink-2: #454b57;
+  --muted: #858c99;
+  --line: #e5e7eb;
+  --accent: #4a3aa7;
+  --accent-soft: #eeecfa;
+  /* Modalidades — paleta categórica validada (ordem fixa). */
+  --swim: #2a78d6;
+  --bike: #eb6834;
+  --run: #1baf7a;
+  --trans: #eda100;
+  /* Status (reservados): ganho/perda de tempo. */
+  --good: #1a7f37;
+  --bad: #c9252d;
+  --warn: #9a6700;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-swim: var(--swim);
+  --color-bike: var(--bike);
+  --color-run: var(--run);
+  --color-trans: var(--trans);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
+  --color-warn: var(--warn);
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+
+* {
+  border-color: var(--line);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "ss01" 1;
+  letter-spacing: -0.01em;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Markdown simples do AI Analyst. */
+.prose-analyst h3 { font-weight: 600; margin: 0.25rem 0 0.5rem; }
+.prose-analyst p { margin: 0.4rem 0; }
+.prose-analyst ul { list-style: disc; padding-left: 1.2rem; margin: 0.4rem 0; }
+.prose-analyst ol { list-style: decimal; padding-left: 1.2rem; margin: 0.4rem 0; }
+.prose-analyst table { border-collapse: collapse; margin: 0.5rem 0; font-size: 12px; display: block; overflow-x: auto; }
+.prose-analyst th, .prose-analyst td { border-bottom: 1px solid var(--line); padding: 4px 8px; text-align: left; white-space: nowrap; }
+.prose-analyst code { font-family: var(--font-mono); font-size: 0.9em; }

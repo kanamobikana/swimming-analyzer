@@ -12,8 +12,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // App independente com config própria.
-    "race-intelligence/**",
   ]),
 ]);
 

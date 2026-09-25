@@ -1,0 +1,201 @@
+// Schema-alvo para a fase com banco (PostgreSQL).
+// O MVP persiste num store JSON (src/lib/data/store.ts) com exatamente estas
+// entidades; migrar = implementar a mesma interface com Prisma.
+// Não está ligado ao build ainda (sem dependência de Prisma no MVP).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Athlete {
+  id                    String   @id @default(cuid())
+  name                  String
+  nickname              String?
+  birthDate             DateTime @db.Date
+  sex                   String   // M | F
+  weightKg              Float
+  heightCm              Float
+  ftpW                  Int
+  vo2max                Float
+  hrMax                 Int
+  lthr                  Int
+  thresholdPaceSecPerKm Int
+  cssSecPer100m         Int
+  avgWeeklyHours        Float
+  mainGoal              String
+  targetRaceName        String
+  targetRaceDate        DateTime @db.Date
+  targetRaceDistance    String
+  injuries              Json     @default("[]")
+  stravaAthleteId       BigInt?  @unique
+  stravaTokens          Json?    // criptografar em produção
+  activities            Activity[]
+  goals                 Goal[]
+  trainingMetrics       TrainingMetric[]
+  performanceMetrics    PerformanceMetric[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+/// Atividade importada (Strava, FIT, GPX, TCX, CSV).
+model Activity {
+  id                String   @id @default(cuid())
+  athleteId         String
+  athlete           Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  source            String   // strava | fit | gpx | tcx | csv | manual
+  externalId        String?
+  startAt           DateTime
+  type              String   // run | ride | virtual_ride | swim | open_water_swim | strength | other
+  name              String
+  movingTimeS       Int
+  elapsedTimeS      Int?
+  distanceM         Float
+  avgHr             Int?
+  maxHr             Int?
+  avgPowerW         Int?
+  normalizedPowerW  Int?
+  avgCadence        Int?
+  elevationGainM    Float?
+  calories          Int?
+  relativeEffort    Int?
+  sourceTrainingLoad Float?
+  hrZones           Json?    // [s Z1..Z5]
+  powerZones        Json?
+  laps              Json?
+  bestEfforts       Json?
+  decoupling        Float?
+  keySession        String?
+  workout           Workout? // vínculo com o planejado
+  @@unique([source, externalId])
+  @@index([athleteId, startAt])
+}
+
+/// Sessão planejada (TrainingPeaks/plano) — base para aderência.
+model Workout {
+  id          String    @id @default(cuid())
+  athleteId   String
+  plannedFor  DateTime  @db.Date
+  sport       String
+  title       String
+  plannedTss  Float?
+  keySession  String?
+  activityId  String?   @unique
+  activity    Activity? @relation(fields: [activityId], references: [id])
+}
+
+model Race {
+  id             String   @id @default(cuid())
+  name           String
+  brand          String
+  date           DateTime @db.Date
+  location       String
+  distance       String   // sprint | olympic | 70.3 | full | half_marathon | ...
+  swimM          Int
+  bikeM          Int
+  runM           Int
+  category       String
+  bibNumber      String?
+  resultsUrl     String?
+  conditions     Json     @default("{}")
+  notes          String?
+  provenance     String   // official | imported | manual | estimate
+  myBikePowerW   Int?
+  slotAllocation Json?    // championship, slots, lastQualifierRank, provenance
+  results        RaceResult[]
+  benchmarks     Benchmark[]
+}
+
+model Competitor {
+  id        String       @id @default(cuid())
+  name      String
+  sex       String
+  category  String
+  country   String?
+  tracked   Boolean      @default(false)
+  results   RaceResult[]
+}
+
+model RaceResult {
+  id            String      @id @default(cuid())
+  raceId        String
+  race          Race        @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  competitorId  String?
+  competitor    Competitor? @relation(fields: [competitorId], references: [id])
+  isMe          Boolean     @default(false)
+  athleteName   String
+  category      String
+  sex           String
+  bib           String?
+  totalS        Int?
+  overallRank   Int?
+  genderRank    Int?
+  categoryRank  Int?
+  status        String      // finisher | dnf | dsq | dns
+  splits        RaceSplit[]
+  @@index([raceId, category])
+}
+
+model RaceSplit {
+  id           String     @id @default(cuid())
+  resultId     String
+  result       RaceResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  leg          String     // swim | t1 | bike | t2 | run | intermediário
+  seconds      Int
+  rankAfterLeg Int?
+  @@unique([resultId, leg])
+}
+
+/// Benchmarks calculados por edição (P1, P5, Top 10%, mediana, última vaga).
+model Benchmark {
+  id       String @id @default(cuid())
+  raceId   String
+  race     Race   @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  key      String
+  rank     Int?
+  totalS   Int
+  splits   Json
+  @@unique([raceId, key])
+}
+
+/// Série diária de carga (TSS, CTL, ATL, TSB) e consistência.
+model TrainingMetric {
+  id          String   @id @default(cuid())
+  athleteId   String
+  athlete     Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  tss         Float
+  ctl         Float
+  atl         Float
+  tsb         Float
+  consistency Int?
+  @@unique([athleteId, date])
+}
+
+/// Snapshots fisiológicos e marcas (FTP, VO2, limiar, CSS, PBs).
+model PerformanceMetric {
+  id        String   @id @default(cuid())
+  athleteId String
+  athlete   Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  key       String   // ftp | vo2max | threshold_pace | css | weight | pb_5k ...
+  value     Float
+  source    String   // test | strava | manual | estimate
+  @@index([athleteId, key, date])
+}
+
+model Goal {
+  id         String    @id @default(cuid())
+  athleteId  String
+  athlete    Athlete   @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  label      String
+  discipline String
+  metric     String
+  target     Float
+  context    String?
+  deadline   DateTime? @db.Date
+}

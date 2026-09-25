@@ -1,5 +1,7 @@
 # Starbem · Plataforma de Precificação
 
+> Este repositório também contém o **Race Performance Intelligence** (dashboard de triathlon), um app independente em [`race-intelligence/`](race-intelligence/README.md).
+
 Ferramenta web interna para calcular o **preço por vida elegível** de cada
 proposta comercial B2B, validando a **margem real** por trás do preço cobrado.
 Substitui o cálculo manual em planilhas por uma lógica auditável e testada.
