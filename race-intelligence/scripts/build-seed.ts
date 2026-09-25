@@ -206,7 +206,7 @@ const athlete: Athlete = {
   history: [{ date: today, ftpW: 261, weightKg: 78, thresholdPaceSecPerKm: Math.round(thrPace), cssSecPer100m: Math.round(css) }],
   estimates: [
     'Peso 78 kg e FTP 261 W: vindos do Strava (FTP estimado pelo Strava a partir da potência).',
-    `FC máx ${hrMax} bpm: maior FC registrada nos últimos 12 meses.`,
+    `FC máx ${hrMax} bpm: percentil 99 das FC máximas de corrida e bike nos últimos 12 meses.`,
     `LTHR ${Math.round((hrMax || 175) * 0.9)} bpm: estimado como 90% da FC máx — faça um teste de limiar.`,
     `Pace de limiar ${fmt(thrPace)}/km: estimado a partir do melhor ${thrFrom} registrado no Strava.`,
     `CSS ${fmt(css)}/100m: estimado pelos treinos de piscina mais rápidos — faça o teste 400/200.`,
