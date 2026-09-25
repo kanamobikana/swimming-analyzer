@@ -43,7 +43,23 @@ const today = todayArg ?? new Date().toISOString().slice(0, 10);
 const raw: McpActivity[] = readdirSync(dir)
   .filter((f) => f.endsWith('.json'))
   .flatMap((f) => JSON.parse(readFileSync(path.join(dir, f), 'utf8')) as McpActivity[]);
-const unique = [...new Map(raw.map((a) => [a.id, a])).values()].sort((a, b) => a.start_local.localeCompare(b.start_local));
+const byId = [...new Map(raw.map((a) => [a.id, a])).values()].sort((a, b) => a.start_local.localeCompare(b.start_local));
+// Gravação dupla (ex.: relógio + ciclocomputador): mesmo esporte, início até 15 min
+// de diferença e distância ±10% → fica a versão com mais dados (potência/FC).
+const score = (a: McpActivity) => (a.avg_watts ? 2 : 0) + (a.avg_hr ? 1 : 0) + (a.best_efforts?.length ? 1 : 0);
+const unique: McpActivity[] = [];
+for (const a of byId) {
+  const dup = unique.findIndex(
+    (b) =>
+      b.sport_type === a.sport_type &&
+      Math.abs(Date.parse(b.start_local) - Date.parse(a.start_local)) <= 15 * 60_000 &&
+      Math.abs(b.distance - a.distance) <= Math.max(a.distance, b.distance) * 0.1,
+  );
+  if (dup === -1) unique.push(a);
+  else if (score(a) > score(unique[dup])) unique[dup] = a;
+}
+// Potência média implausível (< 30 W) é erro de sensor: descarta.
+for (const a of unique) if (a.avg_watts != null && a.avg_watts < 30) delete a.avg_watts;
 
 // Nomes de best efforts do Strava → chaves da API v3 usadas no mapper.
 const EFFORT: Record<string, string> = { '1k': '1k', '1 km': '1k', '5k': '5k', '5 km': '5k', '10k': '10k', '10 km': '10k', 'half-marathon': 'Half-Marathon', 'half marathon': 'Half-Marathon', 'meia maratona': 'Half-Marathon', marathon: 'Marathon', maratona: 'Marathon' };
