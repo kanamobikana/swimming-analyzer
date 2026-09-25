@@ -58,6 +58,12 @@ for (const a of byId) {
   if (dup === -1) unique.push(a);
   else if (score(a) > score(unique[dup])) unique[dup] = a;
 }
+// Perna de bike gravada como "Workout" (ex.: modo multisport): velocidade de bike → Ride.
+for (const a of unique) {
+  if (a.sport_type === 'Workout' && a.distance >= 5000 && a.moving_time > 0 && a.distance / a.moving_time >= 6) a.sport_type = 'Ride';
+}
+// Registros espúrios (poucos metros / segundos).
+for (let i = unique.length - 1; i >= 0; i--) if (unique[i].moving_time < 60 && unique[i].distance < 100) unique.splice(i, 1);
 // Potência média implausível (< 30 W) é erro de sensor: descarta.
 for (const a of unique) if (a.avg_watts != null && a.avg_watts < 30) delete a.avg_watts;
 
@@ -79,7 +85,8 @@ function estimatedZones(avgHr: number, seconds: number): ZoneTime {
   return { seconds: p.map((x) => Math.round(x * seconds)) as ZoneTime['seconds'] };
 }
 
-const RACE_RE = /(prova|race|70\.3|ironman|triathlon|triatlo|maratona|meia|marathon|\bsprint\b|ol[ií]mpico|corrida de)/i;
+const RACE_RE = /(\bprova\b|race|70\.3|ironman|triathlon|triatlo|maratona|meia|marathon|\bsprint\b|ol[ií]mpico|internacional|trof[eé]u)/i;
+const NOT_RACE_RE = /(ritmo|treino|simulad|transi[çc][ãa]o|\bT2\b|pr[eé][ -]?prova|aquec|warm|semana de prova|teste|x\d+k|\d+x\d)/i;
 
 const activities: Activity[] = unique.map((m) => {
   const s: StravaActivity = {
@@ -109,9 +116,27 @@ const activities: Activity[] = unique.map((m) => {
   // Sessões-chave por heurística (sem plano de treino conectado).
   if (a.type === 'run' && a.distanceM >= 16000) a.keySession = 'long_run';
   if ((a.type === 'ride' || a.type === 'virtual_ride') && a.movingTimeS >= 2.5 * 3600) a.keySession = 'long_ride';
-  if (RACE_RE.test(m.name) && (m.relative_effort ?? 0) >= 60) a.keySession = 'race';
+  if (RACE_RE.test(m.name) && !NOT_RACE_RE.test(m.name) && (m.relative_effort ?? 0) >= 60) a.keySession = 'race';
   return a;
 });
+
+// Triathlon: natação → bike → corrida no mesmo dia, tudo em até 3h30 → prova.
+{
+  const byDay = new Map<string, Activity[]>();
+  for (const a of activities) byDay.set(a.date.slice(0, 10), [...(byDay.get(a.date.slice(0, 10)) ?? []), a]);
+  for (const day of byDay.values()) {
+    const swim = day.find((a) => (a.type === 'swim' || a.type === 'open_water_swim') && a.distanceM >= 300 && a.distanceM <= 4200);
+    if (!swim) continue;
+    const t0 = Date.parse(swim.date);
+    // Transições curtas (≤ 12 min) separam prova de treino combinado.
+    const swimEnd = t0 + (swim.elapsedTimeS ?? swim.movingTimeS) * 1000;
+    const bike = day.find((a) => a.type === 'ride' && Date.parse(a.date) >= swimEnd - 2 * 60_000 && Date.parse(a.date) - swimEnd <= 12 * 60_000);
+    if (!bike) continue;
+    const t1 = Date.parse(bike.date) + (bike.elapsedTimeS ?? bike.movingTimeS) * 1000;
+    const run = day.find((a) => a.type === 'run' && Date.parse(a.date) >= t1 - 2 * 60_000 && Date.parse(a.date) - t1 <= 10 * 60_000);
+    if (run) for (const a of [swim, bike, run]) a.keySession = 'race';
+  }
+}
 
 // Bricks: corrida começando até 45 min depois do fim de um pedal.
 for (let i = 1; i < activities.length; i++) {
@@ -125,11 +150,16 @@ for (let i = 1; i < activities.length; i++) {
 
 // ─── Perfil: fatos do Strava + estimativas sinalizadas ───
 const lastYear = activities.filter((a) => a.date.slice(0, 10) >= addDays(today, -365));
-const hrMax = Math.max(...lastYear.map((a) => a.maxHr ?? 0));
+// FC máx robusta: percentil 99 das máximas de corrida/bike (ignora picos de sensor).
+const maxes = lastYear.filter((a) => a.type === 'run' || a.type === 'ride' || a.type === 'virtual_ride').map((a) => a.maxHr ?? 0).filter((x) => x > 0).sort((a, b) => a - b);
+const hrMax = maxes.length ? maxes[Math.floor((maxes.length - 1) * 0.99)] : 0;
 const best = (key: '5k' | '10k') => Math.min(...activities.map((a) => a.bestEfforts?.run?.[key] ?? Infinity));
 const best5k = best('5k');
 const best10k = best('10k');
-const thrPace = Number.isFinite(best10k) ? (best10k / 10) * 1.03 : Number.isFinite(best5k) ? (best5k / 5) * 1.06 : 270;
+// Limiar ≈ pace de ~1h: 10 km × 1,03 ou 5 km × 1,06 — usa a estimativa mais rápida.
+const thrCandidates = [best10k / 10 * 1.03, best5k / 5 * 1.06].filter(Number.isFinite);
+const thrPace = thrCandidates.length ? Math.min(...thrCandidates) : 270;
+const thrFrom = thrCandidates.length && thrPace === best5k / 5 * 1.06 ? '5 km' : '10 km';
 const poolSwims = activities
   .filter((a) => a.type === 'swim' && a.distanceM >= 1000 && a.movingTimeS > 0)
   .map((a) => a.movingTimeS / (a.distanceM / 100))
@@ -175,7 +205,7 @@ const athlete: Athlete = {
     'Peso 78 kg e FTP 261 W: vindos do Strava (FTP estimado pelo Strava a partir da potência).',
     `FC máx ${hrMax} bpm: maior FC registrada nos últimos 12 meses.`,
     `LTHR ${Math.round((hrMax || 175) * 0.9)} bpm: estimado como 90% da FC máx — faça um teste de limiar.`,
-    `Pace de limiar ${fmt(thrPace)}/km: estimado a partir do melhor ${Number.isFinite(best10k) ? '10 km' : '5 km'} do Strava.`,
+    `Pace de limiar ${fmt(thrPace)}/km: estimado a partir do melhor ${thrFrom} registrado no Strava.`,
     `CSS ${fmt(css)}/100m: estimado pelos treinos de piscina mais rápidos — faça o teste 400/200.`,
     'VO₂ Max, altura e histórico de lesões: não disponíveis no Strava — preencha no perfil.',
     'Prova-alvo: o Strava informa só "Ironman full 2027" — defina a prova e a data.',
@@ -192,8 +222,9 @@ const seed = {
   activities,
 };
 
-mkdirSync(path.join(process.cwd(), 'data'), { recursive: true });
-writeFileSync(path.join(process.cwd(), 'data', 'seed.json'), JSON.stringify(seed));
+const out = process.env.SEED_OUT ?? path.join(process.cwd(), 'data', 'seed.json');
+mkdirSync(path.dirname(out), { recursive: true });
+writeFileSync(out, JSON.stringify(seed));
 const detected = activities.filter((a) => a.keySession === 'race');
 console.log(`seed.json: ${activities.length} atividades; ${detected.length} provas detectadas`);
 for (const r of detected) console.log(` - ${r.date.slice(0, 10)} ${r.type} ${r.name.replace(/\n/g, ' ')} ${(r.distanceM / 1000).toFixed(1)} km ${Math.round(r.movingTimeS / 60)} min`);

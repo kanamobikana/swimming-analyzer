@@ -83,7 +83,8 @@ export function zonesToFive(z: StravaZone | undefined): ZoneTime | undefined {
 export function mapStravaActivity(a: StravaActivity, zones?: StravaZone[]): Activity {
   const type = mapSportType(a);
   const runBests: NonNullable<Activity['bestEfforts']>['run'] = {};
-  for (const e of a.best_efforts ?? []) {
+  // Best efforts de tempo só fazem sentido para corrida (pedais trazem "10K" etc.).
+  for (const e of type === 'run' ? (a.best_efforts ?? []) : []) {
     const k = RUN_EFFORTS[e.name];
     if (k) runBests[k] = e.moving_time ?? e.elapsed_time;
   }

@@ -56,7 +56,7 @@ export default async function RacesPage({ searchParams }: { searchParams: Promis
         action={<Link href="/provas/nova" className="rounded-xl bg-ink px-4 py-2 text-sm font-medium text-white">+ Cadastrar prova</Link>} />
 
       {suggestions.length > 0 && (
-        <Card className="mb-4" eyebrow="Detectadas no Strava" title="Provas para cadastrar com o resultado oficial">
+        <Card className="mb-4" eyebrow="Detectadas no Strava" title="Possíveis provas — confirme e cadastre com o resultado oficial">
           <ul className="divide-y divide-line">
             {suggestions.map((s) => (
               <li key={s.date} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
