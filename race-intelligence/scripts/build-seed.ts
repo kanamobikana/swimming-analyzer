@@ -86,7 +86,7 @@ function estimatedZones(avgHr: number, seconds: number): ZoneTime {
 }
 
 const RACE_RE = /(\bprova\b|race|70\.3|ironman|triathlon|triatlo|maratona|meia|marathon|\bsprint\b|ol[ií]mpico|internacional|trof[eé]u)/i;
-const NOT_RACE_RE = /(ritmo|treino|simulad|transi[çc][ãa]o|\bT2\b|pr[eé][ -]?prova|aquec|warm|semana de prova|teste|x\d+k|\d+x\d)/i;
+const NOT_RACE_RE = /(simulado|brick|ritmo|treino|simulad|transi[çc][ãa]o|\bT2\b|pr[eé][ -]?prova|aquec|warm|semana de prova|teste|x\d+k|\d+x\d)/i;
 
 const activities: Activity[] = unique.map((m) => {
   const s: StravaActivity = {
@@ -124,7 +124,10 @@ const activities: Activity[] = unique.map((m) => {
 {
   const byDay = new Map<string, Activity[]>();
   for (const a of activities) byDay.set(a.date.slice(0, 10), [...(byDay.get(a.date.slice(0, 10)) ?? []), a]);
+  const text = new Map(unique.map((m) => [`strava-${m.id}`, `${m.name} ${m.description ?? ''}`]));
   for (const day of byDay.values()) {
+    // Simulado/brick declarado no nome ou na descrição de qualquer perna → treino.
+    if (day.some((a) => NOT_RACE_RE.test(text.get(a.id) ?? ''))) continue;
     const swim = day.find((a) => (a.type === 'swim' || a.type === 'open_water_swim') && a.distanceM >= 300 && a.distanceM <= 4200);
     if (!swim) continue;
     const t0 = Date.parse(swim.date);
